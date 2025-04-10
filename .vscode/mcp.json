@@ -1,0 +1,10 @@
+{
+  "servers": {
+    // https://github.com/ppl-ai/modelcontextprotocol/
+    "weather": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:\\Development\\mcp-tutorial\\weather\\build\\index.js"],
+    }
+  }
+}
