@@ -12,6 +12,7 @@ const server = new McpServer({
   capabilities: {
     resources: {},
     tools: {},
+    prompts: {},
   },
 });
 
@@ -215,6 +216,199 @@ server.tool(
       };
     },
   );
+
+  // Sample prompts that can be served by the MCP server
+const PROMPTS = [
+  {
+    id: "forecast-summary",
+    title: "3-day Forecast Summary",
+    description: "Summarize the next 3 days of weather for a given location.",
+    template:
+      "Summarize the weather forecast for the next 3 days for {location} (lat: {latitude}, lon: {longitude}). Include high/low temperatures, chance of precipitation, and any notable hazards.",
+  },
+  {
+    id: "severe-weather-alerts",
+    title: "Severe Weather Alerts Summary",
+    description: "Summarize active severe weather alerts for a state and recommended actions.",
+    template:
+      "Check for active severe weather alerts in {state}. Summarize the event, affected areas, severity, expected timing, and recommended actions for residents.",
+  },
+  {
+    id: "heat-safety-tips",
+    title: "Heat Safety Tips",
+    description: "Provide short, actionable heat safety tips for vulnerable populations.",
+    template:
+      "Provide concise heat safety tips for outdoor workers and vulnerable populations during an extreme heat event in {location}. Include hydration guidance, cooling strategies, and when to seek medical attention.",
+  },
+  {
+    id: "travel-advisory",
+    title: "Travel Advisory",
+    description: "Generate travel advisories and safety recommendations based on current and forecasted weather.",
+    template:
+      "Given current and forecasted weather conditions for {location}, provide travel advisories and road safety recommendations for drivers traveling between {start_time} and {end_time}.",
+  },
+];
+
+// Simple template renderer that replaces tokens like {key} with values from variables
+function renderTemplate(template: string, variables?: Record<string, any>): string {
+  if (!variables) return template;
+  return template.replace(/\{([^}]+)\}/g, (_match, key) => {
+    const v = variables[key];
+    if (v === undefined || v === null) return `{${key}}`;
+    // For objects/arrays, JSON stringify to preserve structure
+    return typeof v === "object" ? JSON.stringify(v) : String(v);
+  });
+}
+
+// Register prompts
+server.prompt(
+  "forecast-summary",
+  "Summarize the next 3 days of weather for a given location",
+  {
+    location: z.string().describe("The location name"),
+    latitude: z.string().describe("Latitude of the location"),
+    longitude: z.string().describe("Longitude of the location"),
+  },
+  async ({ location, latitude, longitude }) => {
+    const rendered = `Summarize the weather forecast for the next 3 days for ${location} (lat: ${latitude}, lon: ${longitude}). Include high/low temperatures, chance of precipitation, and any notable hazards.`;
+    return {
+      description: "Summarize the next 3 days of weather for a given location",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: rendered,
+          },
+        },
+      ],
+    };
+  },
+);
+
+server.prompt(
+  "severe-weather-alerts",
+  "Summarize active severe weather alerts for a state and recommended actions",
+  {
+    state: z.string().describe("Two-letter state code"),
+  },
+  async ({ state }) => {
+    const rendered = `Check for active severe weather alerts in ${state}. Summarize the event, affected areas, severity, expected timing, and recommended actions for residents.`;
+    return {
+      description: "Summarize active severe weather alerts for a state and recommended actions",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: rendered,
+          },
+        },
+      ],
+    };
+  },
+);
+
+server.prompt(
+  "heat-safety-tips",
+  "Provide short, actionable heat safety tips for vulnerable populations",
+  {
+    location: z.string().describe("The location name"),
+  },
+  async ({ location }) => {
+    const rendered = `Provide concise heat safety tips for outdoor workers and vulnerable populations during an extreme heat event in ${location}. Include hydration guidance, cooling strategies, and when to seek medical attention.`;
+    return {
+      description: "Provide short, actionable heat safety tips for vulnerable populations",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: rendered,
+          },
+        },
+      ],
+    };
+  },
+);
+
+server.prompt(
+  "travel-advisory",
+  "Generate travel advisories and safety recommendations based on current and forecasted weather",
+  {
+    location: z.string().describe("The location name"),
+    start_time: z.string().describe("Start time for travel"),
+    end_time: z.string().describe("End time for travel"),
+  },
+  async ({ location, start_time, end_time }) => {
+    const rendered = `Given current and forecasted weather conditions for ${location}, provide travel advisories and road safety recommendations for drivers traveling between ${start_time} and ${end_time}.`;
+    return {
+      description: "Generate travel advisories and safety recommendations based on current and forecasted weather",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: rendered,
+          },
+        },
+      ],
+    };
+  },
+);
+
+// Tool: list-prompts - returns the available prompts
+server.tool(
+  "list-prompts",
+  "List example prompts that this server can provide",
+  {},
+  async () => {
+    const text = PROMPTS.map((p) => `${p.id} - ${p.title}: ${p.description}\nTemplate: ${p.template}`).join("\n\n");
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Available prompts (${PROMPTS.length}):\n\n${text}`,
+        },
+      ],
+    };
+  },
+);
+
+// Tool: render-prompt - render a selected prompt with optional substitution variables
+server.tool(
+  "render-prompt",
+  "Render one of the example prompts with optional variable substitution",
+  {
+    promptId: z.string().describe("ID of the prompt to render (see list-prompts)"),
+    variables: z.record(z.any()).optional().describe("Optional map of variables to substitute into the prompt"),
+  },
+  async ({ promptId, variables }) => {
+    const prompt = PROMPTS.find((p) => p.id === promptId);
+    if (!prompt) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Prompt not found: ${promptId}`,
+          },
+        ],
+      };
+    }
+
+    const rendered = renderTemplate(prompt.template, variables as Record<string, any>);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Prompt: ${prompt.title}\n\n${rendered}`,
+        },
+      ],
+    };
+  },
+);
 
   async function main() {
     const transport = new StdioServerTransport();
