@@ -287,6 +287,27 @@ server.prompt(
 );
 
 server.prompt(
+  'get-va-weather',
+  "Provide a concise 3-day weather forecast summary for travelers in Virginia, including high/low temperatures, chance of precipitation, and any notable hazards.",
+  {}, 
+  async({}) => {
+    const rendered = `Provide a concise 3-day weather forecast summary for travelers in Virginia, including high/low temperatures, chance of precipitation, and any notable hazards.`;
+    return {
+      description: "Use the get-forecast tool. Provide a concise 3-day weather forecast summary for travelers in Virginia, including high/low temperatures, chance of precipitation, and any notable hazards.",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: rendered,
+          },
+        },
+      ],
+    };
+  }
+)
+
+server.prompt(
   "severe-weather-alerts",
   "Summarize active severe weather alerts for a state and recommended actions",
   {
